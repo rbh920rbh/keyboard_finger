@@ -51,9 +51,9 @@ class TouchAccessibilityService : AccessibilityService() {
 
             val heldMs = SystemClock.uptimeMillis() - directionHoldStartedAt
             val acceleration = when {
-                heldMs >= 1800 -> 3.5f
-                heldMs >= 900 -> 2.2f
-                heldMs >= 300 -> 1.35f
+                heldMs >= 600 -> 12f
+                heldMs >= 300 -> 7f
+                heldMs >= 120 -> 3f
                 else -> 1f
             }
             moveCursor(dx, dy, acceleration)
@@ -75,7 +75,14 @@ class TouchAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val direction = directionFor(event.keyCode)
-        if (direction != null && !event.isCtrlPressed && !event.isAltPressed) {
+        val isWASD = event.keyCode == KeyEvent.KEYCODE_W ||
+            event.keyCode == KeyEvent.KEYCODE_A ||
+            event.keyCode == KeyEvent.KEYCODE_S ||
+            event.keyCode == KeyEvent.KEYCODE_D
+        val isPointerMove = direction != null &&
+            ((!event.isCtrlPressed && !event.isAltPressed) ||
+                (event.isCtrlPressed && !event.isAltPressed && isWASD))
+        if (isPointerMove) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (!pressedDirections.containsKey(event.keyCode)) {
                     pressedDirections[event.keyCode] = direction
@@ -130,8 +137,8 @@ class TouchAccessibilityService : AccessibilityService() {
             KeyEvent.KEYCODE_3 -> clickAtPercent(0.25f, 0.75f)
             KeyEvent.KEYCODE_4 -> clickAtPercent(0.75f, 0.75f)
             KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
-            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.7f, 0.5f, 0.3f)
-            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.3f, 0.5f, 0.7f)
+            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.3f, 0.5f, 0.7f)
+            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.7f, 0.5f, 0.3f)
             KeyEvent.KEYCODE_DPAD_LEFT -> swipe(0.7f, 0.5f, 0.3f, 0.5f)
             KeyEvent.KEYCODE_DPAD_RIGHT -> swipe(0.3f, 0.5f, 0.7f, 0.5f)
             else -> false
@@ -149,13 +156,17 @@ class TouchAccessibilityService : AccessibilityService() {
         KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_NUMPAD_2 -> 0f to 1f
         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_NUMPAD_4 -> -1f to 0f
         KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_NUMPAD_6 -> 1f to 0f
+        KeyEvent.KEYCODE_W -> 0f to -1f
+        KeyEvent.KEYCODE_S -> 0f to 1f
+        KeyEvent.KEYCODE_A -> -1f to 0f
+        KeyEvent.KEYCODE_D -> 1f to 0f
         else -> null
     }
 
     private fun moveCursor(dx: Float, dy: Float, acceleration: Float) {
         val (width, height) = screenSize()
         val density = resources.displayMetrics.density
-        val step = 3.5f * density * acceleration
+        val step = 5f * density * acceleration
         val radius = 20f * density
         cursorX = (cursorX + dx * step).coerceIn(radius, width - radius)
         cursorY = (cursorY + dy * step).coerceIn(radius, height - radius)
