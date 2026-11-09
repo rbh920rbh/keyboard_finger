@@ -9,17 +9,48 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.os.Handler
 import android.os.Looper
-import android.view.View
 import android.view.KeyEvent
+import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
+import android.os.SystemClock
 
 class TouchAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val pressedDirections = mutableMapOf<Int, Pair<Float, Float>>()
+    private var movementScheduled = false
+    private var directionHoldStartedAt = 0L
     private lateinit var windowManager: WindowManager
     private var cursorView: CursorView? = null
     private var cursorParams: WindowManager.LayoutParams? = null
     private var cursorX = 0f
     private var cursorY = 0f
+    private val moveLoop = object : Runnable {
+        override fun run() {
+            if (pressedDirections.isEmpty()) {
+                movementScheduled = false
+                return
+            }
+
+            var dx = pressedDirections.values.sumOf { it.first.toDouble() }.toFloat()
+            var dy = pressedDirections.values.sumOf { it.second.toDouble() }.toFloat()
+            val length = kotlin.math.sqrt(dx * dx + dy * dy)
+            if (length > 1f) {
+                dx /= length
+                dy /= length
+            }
+
+            val heldMs = SystemClock.uptimeMillis() - directionHoldStartedAt
+            val acceleration = when {
+                heldMs >= 1800 -> 3.5f
+                heldMs >= 900 -> 2.2f
+                heldMs >= 300 -> 1.35f
+                else -> 1f
+            }
+            moveCursor(dx, dy, acceleration)
+            mainHandler.postDelayed(this, 16L)
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -37,7 +68,22 @@ class TouchAccessibilityService : AccessibilityService() {
         val direction = directionFor(event.keyCode)
         if (direction != null && !event.isCtrlPressed && !event.isAltPressed) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                moveCursor(direction.first, direction.second, event.repeatCount)
+                if (!pressedDirections.containsKey(event.keyCode)) {
+                    pressedDirections[event.keyCode] = direction
+                    if (pressedDirections.size == 1) {
+                        directionHoldStartedAt = SystemClock.uptimeMillis()
+                    }
+                    if (!movementScheduled) {
+                        movementScheduled = true
+                        mainHandler.post(moveLoop)
+                    }
+                }
+            } else if (event.action == KeyEvent.ACTION_UP) {
+                pressedDirections.remove(event.keyCode)
+                if (pressedDirections.isEmpty()) {
+                    mainHandler.removeCallbacks(moveLoop)
+                    movementScheduled = false
+                }
             }
             return true
         }
@@ -81,17 +127,10 @@ class TouchAccessibilityService : AccessibilityService() {
         else -> null
     }
 
-    private fun moveCursor(dx: Float, dy: Float, repeatCount: Int) {
+    private fun moveCursor(dx: Float, dy: Float, acceleration: Float) {
         val (width, height) = screenSize()
         val density = resources.displayMetrics.density
-        val baseStep = 14f * density
-        val acceleration = when {
-            repeatCount >= 20 -> 4.5f
-            repeatCount >= 10 -> 3f
-            repeatCount >= 4 -> 1.8f
-            else -> 1f
-        }
-        val step = baseStep * acceleration
+        val step = 3.5f * density * acceleration
         val radius = 20f * density
         cursorX = (cursorX + dx * step).coerceIn(radius, width - radius)
         cursorY = (cursorY + dy * step).coerceIn(radius, height - radius)
@@ -109,7 +148,9 @@ class TouchAccessibilityService : AccessibilityService() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
             android.graphics.PixelFormat.TRANSLUCENT
-        )
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+        }
         cursorView = view
         cursorParams = params
         windowManager.addView(view, params)
