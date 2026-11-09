@@ -25,6 +25,12 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorParams: WindowManager.LayoutParams? = null
     private var cursorX = 0f
     private var cursorY = 0f
+    private val hideCursorRunnable = Runnable {
+        cursorView?.animate()
+            ?.alpha(0f)
+            ?.setDuration(250L)
+            ?.start()
+    }
     private val moveLoop = object : Runnable {
         override fun run() {
             if (pressedDirections.isEmpty()) {
@@ -93,6 +99,7 @@ class TouchAccessibilityService : AccessibilityService() {
                 event.keyCode == KeyEvent.KEYCODE_NUMPAD_5)
         ) {
             if (event.action == KeyEvent.ACTION_DOWN) {
+                wakeCursor()
                 clickAt(cursorX, cursorY)
             }
             return true
@@ -134,7 +141,10 @@ class TouchAccessibilityService : AccessibilityService() {
         val radius = 20f * density
         cursorX = (cursorX + dx * step).coerceIn(radius, width - radius)
         cursorY = (cursorY + dy * step).coerceIn(radius, height - radius)
-        mainHandler.post { updateCursor() }
+        mainHandler.post {
+            wakeCursor()
+            updateCursor()
+        }
     }
 
     private fun showCursor() {
@@ -155,6 +165,20 @@ class TouchAccessibilityService : AccessibilityService() {
         cursorParams = params
         windowManager.addView(view, params)
         updateCursor()
+        scheduleCursorFade()
+    }
+
+    private fun wakeCursor() {
+        val view = cursorView ?: return
+        mainHandler.removeCallbacks(hideCursorRunnable)
+        view.animate().cancel()
+        view.alpha = 1f
+        scheduleCursorFade()
+    }
+
+    private fun scheduleCursorFade() {
+        mainHandler.removeCallbacks(hideCursorRunnable)
+        mainHandler.postDelayed(hideCursorRunnable, 900L)
     }
 
     private fun updateCursor() {
@@ -218,6 +242,8 @@ class TouchAccessibilityService : AccessibilityService() {
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(hideCursorRunnable)
+        mainHandler.removeCallbacks(moveLoop)
         mainHandler.post {
             cursorView?.let { view ->
                 if (view.windowToken != null) windowManager.removeView(view)
