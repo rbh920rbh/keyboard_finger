@@ -189,6 +189,7 @@ class TouchAccessibilityService : AccessibilityService() {
     private class CursorView(context: android.content.Context) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.rgb(255, 64, 64)
+            alpha = 115
             style = Paint.Style.FILL
             setShadowLayer(6f, 0f, 2f, Color.BLACK)
         }
@@ -203,6 +204,7 @@ class TouchAccessibilityService : AccessibilityService() {
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = width * 0.08f
             paint.color = Color.WHITE
+            paint.alpha = 130
             canvas.drawCircle(center, center, width * 0.32f, paint)
         }
     }
