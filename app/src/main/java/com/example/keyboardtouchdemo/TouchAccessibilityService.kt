@@ -129,6 +129,7 @@ class TouchAccessibilityService : AccessibilityService() {
             KeyEvent.KEYCODE_2 -> clickAtPercent(0.75f, 0.25f)
             KeyEvent.KEYCODE_3 -> clickAtPercent(0.25f, 0.75f)
             KeyEvent.KEYCODE_4 -> clickAtPercent(0.75f, 0.75f)
+            KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
             KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.7f, 0.5f, 0.3f)
             KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.3f, 0.5f, 0.7f)
             KeyEvent.KEYCODE_DPAD_LEFT -> swipe(0.7f, 0.5f, 0.3f, 0.5f)

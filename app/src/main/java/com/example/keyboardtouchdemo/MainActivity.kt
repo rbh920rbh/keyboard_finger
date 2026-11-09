@@ -60,6 +60,7 @@ class MainActivity : Activity() {
                 快捷键（均需 Ctrl + Alt）：
 
                 1 / 2 / 3 / 4：点击左上、右上、左下、右下
+                Backspace：系统返回
                 
                 虚拟指针模式：
                 方向键 / 小键盘 8、2、4、6：移动指针
