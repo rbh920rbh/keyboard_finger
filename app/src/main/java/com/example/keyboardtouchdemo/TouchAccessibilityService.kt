@@ -121,7 +121,7 @@ class TouchAccessibilityService : AccessibilityService() {
         val params = cursorParams ?: return
         params.x = cursorX.toInt() - view.width / 2
         params.y = cursorY.toInt() - view.height / 2
-        if (view.isAttachedToWindow) {
+        if (view.windowToken != null) {
             windowManager.updateViewLayout(view, params)
         }
     }
@@ -179,7 +179,7 @@ class TouchAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         mainHandler.post {
             cursorView?.let { view ->
-                if (view.isAttachedToWindow) windowManager.removeView(view)
+                if (view.windowToken != null) windowManager.removeView(view)
             }
             cursorView = null
         }
@@ -200,6 +200,9 @@ class TouchAccessibilityService : AccessibilityService() {
 
         override fun onDraw(canvas: Canvas) {
             val center = width / 2f
+            paint.style = Paint.Style.FILL
+            paint.color = Color.rgb(255, 64, 64)
+            paint.alpha = 115
             canvas.drawCircle(center, center, width * 0.24f, paint)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = width * 0.08f
