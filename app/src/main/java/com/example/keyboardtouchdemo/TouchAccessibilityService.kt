@@ -25,6 +25,9 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorParams: WindowManager.LayoutParams? = null
     private var cursorX = 0f
     private var cursorY = 0f
+    private var dragActive = false
+    private var dragStartX = 0f
+    private var dragStartY = 0f
     private val hideCursorRunnable = Runnable {
         cursorView?.animate()
             ?.alpha(0f)
@@ -94,13 +97,22 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        if (!event.isCtrlPressed && !event.isAltPressed &&
-            (event.keyCode == KeyEvent.KEYCODE_ENTER ||
-                event.keyCode == KeyEvent.KEYCODE_NUMPAD_5)
-        ) {
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                wakeCursor()
-                clickAt(cursorX, cursorY)
+        if (!event.isCtrlPressed && !event.isAltPressed && isPointerClickKey(event.keyCode)) {
+            when (event.action) {
+                KeyEvent.ACTION_DOWN -> {
+                    if (!dragActive) {
+                        dragActive = true
+                        dragStartX = cursorX
+                        dragStartY = cursorY
+                        wakeCursor()
+                    }
+                }
+                KeyEvent.ACTION_UP -> {
+                    if (dragActive) {
+                        dragActive = false
+                        finishDrag()
+                    }
+                }
             }
             return true
         }
@@ -125,6 +137,11 @@ class TouchAccessibilityService : AccessibilityService() {
         }
         return handled
     }
+
+    private fun isPointerClickKey(keyCode: Int): Boolean =
+        keyCode == KeyEvent.KEYCODE_ENTER ||
+            keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+            keyCode == KeyEvent.KEYCODE_NUMPAD_5
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f
@@ -156,7 +173,8 @@ class TouchAccessibilityService : AccessibilityService() {
             size,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -203,6 +221,31 @@ class TouchAccessibilityService : AccessibilityService() {
         return dispatchGesture(
             GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(path, 0, 80))
+                .build(),
+            null,
+            null
+        )
+    }
+
+    private fun finishDrag(): Boolean {
+        val deltaX = cursorX - dragStartX
+        val deltaY = cursorY - dragStartY
+        val distance = kotlin.math.sqrt(deltaX * deltaX + deltaY * deltaY)
+        return if (distance < 2f) {
+            clickAt(cursorX, cursorY)
+        } else {
+            swipeBetween(dragStartX, dragStartY, cursorX, cursorY)
+        }
+    }
+
+    private fun swipeBetween(fromX: Float, fromY: Float, toX: Float, toY: Float): Boolean {
+        val path = Path().apply {
+            moveTo(fromX, fromY)
+            lineTo(toX, toY)
+        }
+        return dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
                 .build(),
             null,
             null
