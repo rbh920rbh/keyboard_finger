@@ -124,6 +124,15 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
+        if (!event.isCtrlPressed && !event.isAltPressed &&
+            event.keyCode == KeyEvent.KEYCODE_NUMPAD_SUBTRACT
+        ) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            }
+            return true
+        }
+
         val isCtrlShortcut = event.isCtrlPressed && !event.isAltPressed
         val isCtrlAltSwipe = event.isCtrlPressed &&
             event.isAltPressed &&
@@ -153,11 +162,11 @@ class TouchAccessibilityService : AccessibilityService() {
 
     private fun isPointerClickKey(keyCode: Int): Boolean =
         keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
-            keyCode == KeyEvent.KEYCODE_NUMPAD_5
+            keyCode == KeyEvent.KEYCODE_NUMPAD_0
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f
-        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_NUMPAD_2 -> 0f to 1f
+        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_NUMPAD_5 -> 0f to 1f
         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_NUMPAD_4 -> -1f to 0f
         KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_NUMPAD_6 -> 1f to 0f
         else -> null
