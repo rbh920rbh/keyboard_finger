@@ -80,8 +80,11 @@ class TouchAccessibilityService : AccessibilityService() {
             event.keyCode == KeyEvent.KEYCODE_S ||
             event.keyCode == KeyEvent.KEYCODE_D
         val isPointerMove = direction != null &&
-            ((!event.isCtrlPressed && !event.isAltPressed) ||
-                (event.isCtrlPressed && !event.isAltPressed && isWASD))
+            if (isWASD) {
+                event.isCtrlPressed && event.isShiftPressed && !event.isAltPressed
+            } else {
+                !event.isCtrlPressed && !event.isAltPressed
+            }
         if (isPointerMove) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (!pressedDirections.containsKey(event.keyCode)) {
@@ -104,7 +107,9 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        if (!event.isCtrlPressed && !event.isAltPressed && isPointerClickKey(event.keyCode)) {
+        if (event.isCtrlPressed && event.isShiftPressed && !event.isAltPressed &&
+            isPointerClickKey(event.keyCode)
+        ) {
             when (event.action) {
                 KeyEvent.ACTION_DOWN -> {
                     if (!dragActive) {
@@ -124,9 +129,20 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        if (event.action != KeyEvent.ACTION_DOWN ||
-            !event.isCtrlPressed ||
+        val isCtrlShiftShortcut = event.isCtrlPressed &&
+            event.isShiftPressed &&
             !event.isAltPressed
+        val isCtrlAltSwipe = event.isCtrlPressed &&
+            event.isAltPressed &&
+            !event.isShiftPressed &&
+            event.keyCode in setOf(
+                KeyEvent.KEYCODE_DPAD_UP,
+                KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_DPAD_LEFT,
+                KeyEvent.KEYCODE_DPAD_RIGHT
+            )
+        if (event.action != KeyEvent.ACTION_DOWN ||
+            (!isCtrlShiftShortcut && !isCtrlAltSwipe)
         ) {
             return false
         }
@@ -137,8 +153,8 @@ class TouchAccessibilityService : AccessibilityService() {
             KeyEvent.KEYCODE_3 -> clickAtPercent(0.25f, 0.75f)
             KeyEvent.KEYCODE_4 -> clickAtPercent(0.75f, 0.75f)
             KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
-            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.3f, 0.5f, 0.7f)
-            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.7f, 0.5f, 0.3f)
+            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.4f, 0.5f, 0.6f)
+            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.6f, 0.5f, 0.4f)
             KeyEvent.KEYCODE_DPAD_LEFT -> swipe(0.7f, 0.5f, 0.3f, 0.5f)
             KeyEvent.KEYCODE_DPAD_RIGHT -> swipe(0.3f, 0.5f, 0.7f, 0.5f)
             else -> false
@@ -149,7 +165,8 @@ class TouchAccessibilityService : AccessibilityService() {
     private fun isPointerClickKey(keyCode: Int): Boolean =
         keyCode == KeyEvent.KEYCODE_ENTER ||
             keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
-            keyCode == KeyEvent.KEYCODE_NUMPAD_5
+            keyCode == KeyEvent.KEYCODE_NUMPAD_5 ||
+            keyCode == KeyEvent.KEYCODE_SPACE
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f

@@ -57,18 +57,19 @@ class MainActivity : Activity() {
 
         root.addView(TextView(this).apply {
             text = """
-                快捷键（均需 Ctrl + Alt）：
+                快捷键（均需 Ctrl + Shift）：
 
                 1 / 2 / 3 / 4：点击左上、右上、左下、右下
                 Backspace：系统返回
-                ↑ / ↓：滑动方向已反转
+                ↑ / ↓：滑动方向已反转，移动距离已缩短
+                Ctrl + Alt + 方向键：兼容旧版滑动快捷键
                 
                 虚拟指针模式：
                 方向键 / 小键盘 8、2、4、6：移动指针
-                Ctrl + W / A / S / D：移动指针
+                Ctrl + Shift + W / A / S / D：移动指针
                 按住方向键：键盘自动重复并逐级加速
-                Enter / 小键盘 5：点击指针位置
-                按住 Enter / 小键盘 5 + 移动：拖动并滑动，松开后执行
+                Ctrl + Shift + Enter / Space / 小键盘 5：点击指针位置
+                按住上述组合键 + 移动：拖动并滑动，松开后执行
 
                 说明：首次使用必须在系统设置中启用本应用的无障碍服务。
             """.trimIndent()
