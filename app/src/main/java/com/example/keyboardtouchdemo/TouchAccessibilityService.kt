@@ -198,9 +198,8 @@ class TouchAccessibilityService : AccessibilityService() {
         val (width, height) = screenSize()
         val density = resources.displayMetrics.density
         val step = 5f * density * acceleration
-        val radius = 20f * density
-        cursorX = (cursorX + dx * step).coerceIn(radius, width - radius)
-        cursorY = (cursorY + dy * step).coerceIn(radius, height - radius)
+        cursorX = (cursorX + dx * step).coerceIn(0f, width)
+        cursorY = (cursorY + dy * step).coerceIn(0f, height)
         mainHandler.post {
             wakeCursor()
             updateCursor()
@@ -220,7 +219,8 @@ class TouchAccessibilityService : AccessibilityService() {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
