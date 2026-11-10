@@ -69,6 +69,7 @@ class MainActivity : Activity() {
                 Ctrl + Shift + W / A / S / D：移动指针
                 按住方向键：键盘自动重复并逐级加速
                 Ctrl + Shift + Enter / Space / 小键盘 5：点击指针位置
+                按住上述组合键约 0.5 秒：长按
                 按住上述组合键 + 移动：拖动并滑动，松开后执行
 
                 说明：首次使用必须在系统设置中启用本应用的无障碍服务。

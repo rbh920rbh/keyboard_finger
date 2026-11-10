@@ -28,6 +28,7 @@ class TouchAccessibilityService : AccessibilityService() {
     private var dragActive = false
     private var dragStartX = 0f
     private var dragStartY = 0f
+    private var dragStartAt = 0L
     private val hideCursorRunnable = Runnable {
         cursorView?.animate()
             ?.alpha(0f)
@@ -116,6 +117,7 @@ class TouchAccessibilityService : AccessibilityService() {
                         dragActive = true
                         dragStartX = cursorX
                         dragStartY = cursorY
+                        dragStartAt = SystemClock.uptimeMillis()
                         wakeCursor()
                     }
                 }
@@ -261,10 +263,28 @@ class TouchAccessibilityService : AccessibilityService() {
         val deltaY = cursorY - dragStartY
         val distance = kotlin.math.sqrt(deltaX * deltaX + deltaY * deltaY)
         return if (distance < 2f) {
-            clickAt(cursorX, cursorY)
+            val heldMs = SystemClock.uptimeMillis() - dragStartAt
+            if (heldMs >= 500L) {
+                longClickAt(dragStartX, dragStartY)
+            } else {
+                clickAt(cursorX, cursorY)
+            }
         } else {
             swipeBetween(dragStartX, dragStartY, cursorX, cursorY)
         }
+    }
+
+    private fun longClickAt(x: Float, y: Float): Boolean {
+        val path = Path().apply {
+            moveTo(x, y)
+        }
+        return dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 800))
+                .build(),
+            null,
+            null
+        )
     }
 
     private fun swipeBetween(fromX: Float, fromY: Float, toX: Float, toY: Float): Boolean {
