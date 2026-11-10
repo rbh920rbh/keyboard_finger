@@ -59,6 +59,7 @@ class MainActivity : Activity() {
             text = """
                 快捷键：
                 Ctrl + Backspace：系统返回
+                Ctrl + Alt + ↑ / ↓：短距离上下滑动
 
                 虚拟指针模式：
                 小键盘 8、5、4、6：移动指针

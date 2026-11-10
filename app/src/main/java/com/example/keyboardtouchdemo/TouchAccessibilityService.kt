@@ -134,14 +134,21 @@ class TouchAccessibilityService : AccessibilityService() {
         }
 
         val isCtrlShortcut = event.isCtrlPressed && !event.isAltPressed
+        val isCtrlAltVerticalSwipe = event.isCtrlPressed &&
+            event.isAltPressed &&
+            !event.isShiftPressed &&
+            (event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN)
         if (event.action != KeyEvent.ACTION_DOWN ||
-            !isCtrlShortcut
+            (!isCtrlShortcut && !isCtrlAltVerticalSwipe)
         ) {
             return false
         }
 
         val handled = when (event.keyCode) {
             KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
+            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.4f, 0.5f, 0.6f)
+            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.6f, 0.5f, 0.4f)
             else -> false
         }
         return handled
@@ -253,6 +260,21 @@ class TouchAccessibilityService : AccessibilityService() {
         return dispatchGesture(
             GestureDescription.Builder()
                 .addStroke(GestureDescription.StrokeDescription(path, 0, 800))
+                .build(),
+            null,
+            null
+        )
+    }
+
+    private fun swipe(fromX: Float, fromY: Float, toX: Float, toY: Float): Boolean {
+        val (width, height) = screenSize()
+        val path = Path().apply {
+            moveTo(width * fromX, height * fromY)
+            lineTo(width * toX, height * toY)
+        }
+        return dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
                 .build(),
             null,
             null
