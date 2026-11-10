@@ -134,27 +134,14 @@ class TouchAccessibilityService : AccessibilityService() {
         }
 
         val isCtrlShortcut = event.isCtrlPressed && !event.isAltPressed
-        val isCtrlAltSwipe = event.isCtrlPressed &&
-            event.isAltPressed &&
-            !event.isShiftPressed &&
-            event.keyCode in setOf(
-                KeyEvent.KEYCODE_DPAD_UP,
-                KeyEvent.KEYCODE_DPAD_DOWN,
-                KeyEvent.KEYCODE_DPAD_LEFT,
-                KeyEvent.KEYCODE_DPAD_RIGHT
-            )
         if (event.action != KeyEvent.ACTION_DOWN ||
-            (!isCtrlShortcut && !isCtrlAltSwipe)
+            !isCtrlShortcut
         ) {
             return false
         }
 
         val handled = when (event.keyCode) {
             KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
-            KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.4f, 0.5f, 0.6f)
-            KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.6f, 0.5f, 0.4f)
-            KeyEvent.KEYCODE_DPAD_LEFT -> swipe(0.7f, 0.5f, 0.3f, 0.5f)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> swipe(0.3f, 0.5f, 0.7f, 0.5f)
             else -> false
         }
         return handled
@@ -165,10 +152,10 @@ class TouchAccessibilityService : AccessibilityService() {
             keyCode == KeyEvent.KEYCODE_NUMPAD_0
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
-        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f
-        KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_NUMPAD_5 -> 0f to 1f
-        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_NUMPAD_4 -> -1f to 0f
-        KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_NUMPAD_6 -> 1f to 0f
+        KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f
+        KeyEvent.KEYCODE_NUMPAD_5 -> 0f to 1f
+        KeyEvent.KEYCODE_NUMPAD_4 -> -1f to 0f
+        KeyEvent.KEYCODE_NUMPAD_6 -> 1f to 0f
         else -> null
     }
 
@@ -276,26 +263,6 @@ class TouchAccessibilityService : AccessibilityService() {
         val path = Path().apply {
             moveTo(fromX, fromY)
             lineTo(toX, toY)
-        }
-        return dispatchGesture(
-            GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, 350))
-                .build(),
-            null,
-            null
-        )
-    }
-
-    private fun swipe(
-        fromX: Float,
-        fromY: Float,
-        toX: Float,
-        toY: Float
-    ): Boolean {
-        val (width, height) = screenSize()
-        val path = Path().apply {
-            moveTo(width * fromX, height * fromY)
-            lineTo(width * toX, height * toY)
         }
         return dispatchGesture(
             GestureDescription.Builder()
