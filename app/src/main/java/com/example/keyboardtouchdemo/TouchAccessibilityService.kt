@@ -82,7 +82,7 @@ class TouchAccessibilityService : AccessibilityService() {
             event.keyCode == KeyEvent.KEYCODE_D
         val isPointerMove = direction != null &&
             if (isWASD) {
-                event.isCtrlPressed && event.isShiftPressed && !event.isAltPressed
+                event.isCtrlPressed && !event.isAltPressed
             } else {
                 !event.isCtrlPressed && !event.isAltPressed
             }
@@ -108,7 +108,7 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        if (event.isCtrlPressed && event.isShiftPressed && !event.isAltPressed &&
+        if (event.isCtrlPressed && !event.isAltPressed &&
             isPointerClickKey(event.keyCode)
         ) {
             when (event.action) {
@@ -131,9 +131,7 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        val isCtrlShiftShortcut = event.isCtrlPressed &&
-            event.isShiftPressed &&
-            !event.isAltPressed
+        val isCtrlShortcut = event.isCtrlPressed && !event.isAltPressed
         val isCtrlAltSwipe = event.isCtrlPressed &&
             event.isAltPressed &&
             !event.isShiftPressed &&
@@ -144,7 +142,7 @@ class TouchAccessibilityService : AccessibilityService() {
                 KeyEvent.KEYCODE_DPAD_RIGHT
             )
         if (event.action != KeyEvent.ACTION_DOWN ||
-            (!isCtrlShiftShortcut && !isCtrlAltSwipe)
+            (!isCtrlShortcut && !isCtrlAltSwipe)
         ) {
             return false
         }

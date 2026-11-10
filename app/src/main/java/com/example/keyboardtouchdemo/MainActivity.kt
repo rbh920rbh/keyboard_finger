@@ -57,7 +57,7 @@ class MainActivity : Activity() {
 
         root.addView(TextView(this).apply {
             text = """
-                快捷键（均需 Ctrl + Shift）：
+                快捷键（均需 Ctrl）：
 
                 1 / 2 / 3 / 4：点击左上、右上、左下、右下
                 Backspace：系统返回
@@ -66,9 +66,9 @@ class MainActivity : Activity() {
                 
                 虚拟指针模式：
                 方向键 / 小键盘 8、2、4、6：移动指针
-                Ctrl + Shift + W / A / S / D：移动指针
+                Ctrl + W / A / S / D：移动指针
                 按住方向键：键盘自动重复并逐级加速
-                Ctrl + Shift + Enter / Space / 小键盘 5：点击指针位置
+                Ctrl + Enter / Space / 小键盘 5：点击指针位置
                 按住上述组合键约 0.5 秒：长按
                 按住上述组合键 + 移动：拖动并滑动，松开后执行
 
