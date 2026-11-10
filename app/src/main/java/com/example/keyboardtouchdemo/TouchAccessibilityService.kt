@@ -273,16 +273,14 @@ class TouchAccessibilityService : AccessibilityService() {
         touchSegmentEndY = y
         touchReleaseRequested = false
         touchSegmentContinues = true
-        val path = Path().apply {
-            moveTo(x, y)
-        }
+        val path = touchPath(x, y, x, y)
         touchStroke = GestureDescription.StrokeDescription(path, 0, 60, true)
         touchGestureRunning = dispatchGesture(
             GestureDescription.Builder()
                 .addStroke(touchStroke!!)
                 .build(),
             touchGestureCallback,
-            null
+            mainHandler
         )
         if (!touchGestureRunning) touchStroke = null
     }
@@ -295,8 +293,12 @@ class TouchAccessibilityService : AccessibilityService() {
         }
         touchTargetX = x
         touchTargetY = y
-        if (!touchGestureRunning && touchStroke != null) {
-            dispatchNextTouchSegment()
+        if (!touchGestureRunning) {
+            if (touchStroke == null && dragActive) {
+                startTouchGesture(x, y)
+            } else {
+                dispatchNextTouchSegment()
+            }
         }
     }
 
@@ -329,10 +331,7 @@ class TouchAccessibilityService : AccessibilityService() {
         val continueGesture = dragActive
         val endX = touchTargetX
         val endY = touchTargetY
-        val path = Path().apply {
-            moveTo(touchLastX, touchLastY)
-            lineTo(endX, endY)
-        }
+        val path = touchPath(touchLastX, touchLastY, endX, endY)
         touchSegmentEndX = endX
         touchSegmentEndY = endY
         touchSegmentContinues = continueGesture
@@ -342,9 +341,20 @@ class TouchAccessibilityService : AccessibilityService() {
                 .addStroke(touchStroke!!)
                 .build(),
             touchGestureCallback,
-            null
+            mainHandler
         )
         if (!touchGestureRunning) touchStroke = null
+    }
+
+    private fun touchPath(fromX: Float, fromY: Float, toX: Float, toY: Float): Path {
+        val path = Path().apply {
+            moveTo(fromX, fromY)
+            lineTo(toX, toY)
+        }
+        if (fromX == toX && fromY == toY) {
+            path.lineTo(fromX + 0.1f, fromY)
+        }
+        return path
     }
 
     private fun swipe(fromX: Float, fromY: Float, toX: Float, toY: Float): Boolean {
