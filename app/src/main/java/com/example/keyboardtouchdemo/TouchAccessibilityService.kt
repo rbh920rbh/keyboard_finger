@@ -274,7 +274,7 @@ class TouchAccessibilityService : AccessibilityService() {
         touchReleaseRequested = false
         touchSegmentContinues = true
         val path = touchPath(x, y, x, y)
-        touchStroke = GestureDescription.StrokeDescription(path, 0, 60, true)
+        touchStroke = GestureDescription.StrokeDescription(path, 0, 16, true)
         touchGestureRunning = dispatchGesture(
             GestureDescription.Builder()
                 .addStroke(touchStroke!!)
@@ -335,7 +335,7 @@ class TouchAccessibilityService : AccessibilityService() {
         touchSegmentEndX = endX
         touchSegmentEndY = endY
         touchSegmentContinues = continueGesture
-        touchStroke = previousStroke.continueStroke(path, 0, 60, continueGesture)
+        touchStroke = previousStroke.continueStroke(path, 0, 16, continueGesture)
         touchGestureRunning = dispatchGesture(
             GestureDescription.Builder()
                 .addStroke(touchStroke!!)
