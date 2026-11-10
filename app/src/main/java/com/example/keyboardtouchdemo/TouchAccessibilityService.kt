@@ -26,6 +26,8 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorX = 0f
     private var cursorY = 0f
     private var dragActive = false
+    private var dragStartAt = 0L
+    private var touchMoved = false
     private var touchStroke: GestureDescription.StrokeDescription? = null
     private var touchGestureRunning = false
     private var touchReleaseRequested = false
@@ -138,6 +140,8 @@ class TouchAccessibilityService : AccessibilityService() {
                 KeyEvent.ACTION_DOWN -> {
                     if (!dragActive) {
                         dragActive = true
+                        dragStartAt = SystemClock.uptimeMillis()
+                        touchMoved = false
                         wakeCursor()
                         startTouchGesture(cursorX, cursorY)
                     }
@@ -145,7 +149,12 @@ class TouchAccessibilityService : AccessibilityService() {
                 KeyEvent.ACTION_UP -> {
                     if (dragActive) {
                         dragActive = false
-                        endTouchGesture()
+                        val heldMs = SystemClock.uptimeMillis() - dragStartAt
+                        if (!touchMoved && heldMs < 500L) {
+                            tapNow(cursorX, cursorY)
+                        } else {
+                            endTouchGesture()
+                        }
                     }
                 }
             }
@@ -279,6 +288,11 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     private fun queueTouchPoint(x: Float, y: Float) {
+        if (kotlin.math.abs(x - touchTargetX) > 1f ||
+            kotlin.math.abs(y - touchTargetY) > 1f
+        ) {
+            touchMoved = true
+        }
         touchTargetX = x
         touchTargetY = y
         if (!touchGestureRunning && touchStroke != null) {
@@ -291,6 +305,23 @@ class TouchAccessibilityService : AccessibilityService() {
         if (!touchGestureRunning && touchStroke != null) {
             dispatchNextTouchSegment()
         }
+    }
+
+    private fun tapNow(x: Float, y: Float) {
+        touchStroke = null
+        touchGestureRunning = false
+        touchReleaseRequested = false
+        touchSegmentContinues = false
+        val path = Path().apply {
+            moveTo(x, y)
+        }
+        dispatchGesture(
+            GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 1))
+                .build(),
+            null,
+            null
+        )
     }
 
     private fun dispatchNextTouchSegment() {
