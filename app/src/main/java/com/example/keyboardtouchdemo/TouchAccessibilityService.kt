@@ -152,8 +152,7 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     private fun isPointerClickKey(keyCode: Int): Boolean =
-        keyCode == KeyEvent.KEYCODE_ENTER ||
-            keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
             keyCode == KeyEvent.KEYCODE_NUMPAD_5
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
