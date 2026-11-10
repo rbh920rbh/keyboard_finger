@@ -25,40 +25,10 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorParams: WindowManager.LayoutParams? = null
     private var cursorX = 0f
     private var cursorY = 0f
-    private var dragActive = false
-    private var touchStroke: GestureDescription.StrokeDescription? = null
-    private var touchGestureRunning = false
-    private var touchReleaseRequested = false
-    private var touchSegmentContinues = false
-    private var touchLastX = 0f
-    private var touchLastY = 0f
-    private var touchTargetX = 0f
-    private var touchTargetY = 0f
-    private var touchSegmentEndX = 0f
-    private var touchSegmentEndY = 0f
-    private val touchGestureCallback = object : AccessibilityService.GestureResultCallback() {
-        override fun onCompleted(gestureDescription: GestureDescription) {
-            mainHandler.post {
-                touchGestureRunning = false
-                touchLastX = touchSegmentEndX
-                touchLastY = touchSegmentEndY
-                if (touchSegmentContinues && (dragActive || touchReleaseRequested)) {
-                    dispatchNextTouchSegment()
-                } else {
-                    touchStroke = null
-                    touchReleaseRequested = false
-                }
-            }
-        }
-
-        override fun onCancelled(gestureDescription: GestureDescription) {
-            mainHandler.post {
-                touchGestureRunning = false
-                touchStroke = null
-                touchReleaseRequested = false
-            }
-        }
-    }
+    private var touchDown = false
+    private var stroke: GestureDescription.StrokeDescription? = null
+    private val touchPath = Path()
+    private var lastDispatchAt = 0L
     private val hideCursorRunnable = Runnable {
         cursorView?.animate()
             ?.alpha(0f)
@@ -136,16 +106,15 @@ class TouchAccessibilityService : AccessibilityService() {
         ) {
             when (event.action) {
                 KeyEvent.ACTION_DOWN -> {
-                    if (!dragActive) {
-                        dragActive = true
+                    if (!touchDown) {
+                        touchDown = true
                         wakeCursor()
-                        startTouchGesture(cursorX, cursorY)
+                        startStroke(cursorX, cursorY)
                     }
                 }
                 KeyEvent.ACTION_UP -> {
-                    if (dragActive) {
-                        dragActive = false
-                        endTouchGesture()
+                    if (touchDown) {
+                        endStroke(cursorX, cursorY)
                     }
                 }
             }
@@ -203,8 +172,8 @@ class TouchAccessibilityService : AccessibilityService() {
         mainHandler.post {
             wakeCursor()
             updateCursor()
-            if (dragActive) {
-                queueTouchPoint(cursorX, cursorY)
+            if (touchDown) {
+                continueStroke(cursorX, cursorY)
             }
         }
     }
@@ -255,74 +224,57 @@ class TouchAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun startTouchGesture(x: Float, y: Float) {
-        touchLastX = x
-        touchLastY = y
-        touchTargetX = x
-        touchTargetY = y
-        touchSegmentEndX = x
-        touchSegmentEndY = y
-        touchReleaseRequested = false
-        touchSegmentContinues = true
-        val path = touchPath(x, y, x, y)
-        touchStroke = GestureDescription.StrokeDescription(path, 0, 16, true)
-        touchGestureRunning = dispatchGesture(
+    private fun startStroke(x: Float, y: Float) {
+        touchPath.reset()
+        touchPath.moveTo(x, y)
+        stroke = null
+        lastDispatchAt = SystemClock.uptimeMillis()
+        dispatchStroke(x, y, willContinue = true)
+    }
+
+    private fun continueStroke(x: Float, y: Float) {
+        if (!touchDown) return
+        touchPath.lineTo(x, y)
+        dispatchStroke(x, y, willContinue = true)
+    }
+
+    private fun endStroke(x: Float, y: Float) {
+        if (!touchDown) return
+        touchPath.lineTo(x, y)
+        dispatchStroke(x, y, willContinue = false)
+        touchDown = false
+        touchPath.reset()
+        stroke = null
+    }
+
+    private fun dispatchStroke(x: Float, y: Float, willContinue: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        val duration = (now - lastDispatchAt).coerceAtLeast(1L)
+        stroke = if (stroke == null) {
+            GestureDescription.StrokeDescription(
+                Path(touchPath),
+                0,
+                duration,
+                willContinue
+            )
+        } else {
+            stroke!!.continueStroke(
+                Path(touchPath),
+                0,
+                duration,
+                willContinue
+            )
+        }
+        dispatchGesture(
             GestureDescription.Builder()
-                .addStroke(touchStroke!!)
+                .addStroke(stroke!!)
                 .build(),
-            touchGestureCallback,
-            mainHandler
+            null,
+            null
         )
-        if (!touchGestureRunning) touchStroke = null
-    }
-
-    private fun queueTouchPoint(x: Float, y: Float) {
-        touchTargetX = x
-        touchTargetY = y
-        if (!touchGestureRunning) {
-            if (touchStroke == null && dragActive) {
-                startTouchGesture(x, y)
-            } else {
-                dispatchNextTouchSegment()
-            }
-        }
-    }
-
-    private fun endTouchGesture() {
-        touchReleaseRequested = true
-        if (!touchGestureRunning && touchStroke != null) {
-            dispatchNextTouchSegment()
-        }
-    }
-
-    private fun dispatchNextTouchSegment() {
-        val previousStroke = touchStroke ?: return
-        val continueGesture = dragActive
-        val endX = touchTargetX
-        val endY = touchTargetY
-        val path = touchPath(touchLastX, touchLastY, endX, endY)
-        touchSegmentEndX = endX
-        touchSegmentEndY = endY
-        touchSegmentContinues = continueGesture
-        touchStroke = previousStroke.continueStroke(path, 0, 16, continueGesture)
-        touchGestureRunning = dispatchGesture(
-            GestureDescription.Builder()
-                .addStroke(touchStroke!!)
-                .build(),
-            touchGestureCallback,
-            mainHandler
-        )
-        if (!touchGestureRunning) touchStroke = null
-    }
-
-    private fun touchPath(fromX: Float, fromY: Float, toX: Float, toY: Float): Path {
-        val path = Path().apply {
-            moveTo(fromX, fromY)
-        }
-        if (fromX != toX || fromY != toY) {
-            path.lineTo(toX, toY)
-        }
-        return path
+        lastDispatchAt = now
+        touchPath.reset()
+        touchPath.moveTo(x, y)
     }
 
     private fun swipe(fromX: Float, fromY: Float, toX: Float, toY: Float): Boolean {
@@ -355,9 +307,9 @@ class TouchAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         mainHandler.removeCallbacks(hideCursorRunnable)
         mainHandler.removeCallbacks(moveLoop)
-        dragActive = false
-        touchReleaseRequested = true
-        touchStroke = null
+        touchDown = false
+        touchPath.reset()
+        stroke = null
         mainHandler.post {
             cursorView?.let { view ->
                 if (view.windowToken != null) windowManager.removeView(view)
