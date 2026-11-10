@@ -76,16 +76,9 @@ class TouchAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val direction = directionFor(event.keyCode)
-        val isWASD = event.keyCode == KeyEvent.KEYCODE_W ||
-            event.keyCode == KeyEvent.KEYCODE_A ||
-            event.keyCode == KeyEvent.KEYCODE_S ||
-            event.keyCode == KeyEvent.KEYCODE_D
         val isPointerMove = direction != null &&
-            if (isWASD) {
-                event.isCtrlPressed && !event.isAltPressed
-            } else {
-                !event.isCtrlPressed && !event.isAltPressed
-            }
+            !event.isCtrlPressed &&
+            !event.isAltPressed
         if (isPointerMove) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (!pressedDirections.containsKey(event.keyCode)) {
@@ -108,7 +101,7 @@ class TouchAccessibilityService : AccessibilityService() {
             return true
         }
 
-        if (event.isCtrlPressed && !event.isAltPressed &&
+        if (!event.isCtrlPressed && !event.isAltPressed &&
             isPointerClickKey(event.keyCode)
         ) {
             when (event.action) {
@@ -148,10 +141,6 @@ class TouchAccessibilityService : AccessibilityService() {
         }
 
         val handled = when (event.keyCode) {
-            KeyEvent.KEYCODE_1 -> clickAtPercent(0.25f, 0.25f)
-            KeyEvent.KEYCODE_2 -> clickAtPercent(0.75f, 0.25f)
-            KeyEvent.KEYCODE_3 -> clickAtPercent(0.25f, 0.75f)
-            KeyEvent.KEYCODE_4 -> clickAtPercent(0.75f, 0.75f)
             KeyEvent.KEYCODE_DEL -> performGlobalAction(GLOBAL_ACTION_BACK)
             KeyEvent.KEYCODE_DPAD_UP -> swipe(0.5f, 0.4f, 0.5f, 0.6f)
             KeyEvent.KEYCODE_DPAD_DOWN -> swipe(0.5f, 0.6f, 0.5f, 0.4f)
@@ -165,18 +154,13 @@ class TouchAccessibilityService : AccessibilityService() {
     private fun isPointerClickKey(keyCode: Int): Boolean =
         keyCode == KeyEvent.KEYCODE_ENTER ||
             keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
-            keyCode == KeyEvent.KEYCODE_NUMPAD_5 ||
-            keyCode == KeyEvent.KEYCODE_SPACE
+            keyCode == KeyEvent.KEYCODE_NUMPAD_5
 
     private fun directionFor(keyCode: Int): Pair<Float, Float>? = when (keyCode) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_NUMPAD_8 -> 0f to -1f
         KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_NUMPAD_2 -> 0f to 1f
         KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_NUMPAD_4 -> -1f to 0f
         KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_NUMPAD_6 -> 1f to 0f
-        KeyEvent.KEYCODE_W -> 0f to -1f
-        KeyEvent.KEYCODE_S -> 0f to 1f
-        KeyEvent.KEYCODE_A -> -1f to 0f
-        KeyEvent.KEYCODE_D -> 1f to 0f
         else -> null
     }
 
@@ -236,11 +220,6 @@ class TouchAccessibilityService : AccessibilityService() {
         if (view.windowToken != null) {
             windowManager.updateViewLayout(view, params)
         }
-    }
-
-    private fun clickAtPercent(relativeX: Float, relativeY: Float): Boolean {
-        val (width, height) = screenSize()
-        return clickAt(width * relativeX, height * relativeY)
     }
 
     private fun clickAt(x: Float, y: Float): Boolean {
