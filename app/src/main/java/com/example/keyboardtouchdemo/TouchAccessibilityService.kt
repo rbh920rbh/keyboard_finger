@@ -349,10 +349,9 @@ class TouchAccessibilityService : AccessibilityService() {
     private fun touchPath(fromX: Float, fromY: Float, toX: Float, toY: Float): Path {
         val path = Path().apply {
             moveTo(fromX, fromY)
-            lineTo(toX, toY)
         }
-        if (fromX == toX && fromY == toY) {
-            path.lineTo(fromX + 0.1f, fromY)
+        if (fromX != toX || fromY != toY) {
+            path.lineTo(toX, toY)
         }
         return path
     }
