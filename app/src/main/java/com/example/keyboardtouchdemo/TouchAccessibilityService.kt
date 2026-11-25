@@ -26,6 +26,7 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorX = 0f
     private var cursorY = 0f
     private var activePackageName: String? = null
+    private var activePackageNames: Set<String> = emptySet()
     private var operationsBlocked = false
     private var lastForegroundCheckAt = 0L
     private var cachedBlacklistText: String? = null
@@ -315,9 +316,10 @@ class TouchAccessibilityService : AccessibilityService() {
         refreshBlacklistCache()
         if (packageName != activePackageName) {
             activePackageName = packageName
+            activePackageNames = setOf(packageName)
             lastForegroundCheckAt = SystemClock.uptimeMillis()
         }
-        val blocked = isPackageBlacklisted(packageName)
+        val blocked = cachedBlacklist.any { it == packageName }
         if (blocked != operationsBlocked) updateBlacklistState(blocked)
     }
 
@@ -327,26 +329,29 @@ class TouchAccessibilityService : AccessibilityService() {
         refreshBlacklistCache()
         val now = SystemClock.uptimeMillis()
         if (activePackageName == null || now - lastForegroundCheckAt >= 300L) {
-            foregroundPackageName()?.let {
-                activePackageName = it
+            val foregroundPackages = foregroundPackageNames()
+            if (foregroundPackages.isNotEmpty()) {
+                activePackageNames = foregroundPackages
+                activePackageName = foregroundPackages.first()
                 lastForegroundCheckAt = now
             }
         }
-        val foregroundPackage = activePackageName
-        val blocked = cachedBlacklist.contains(foregroundPackage)
+        val blocked = activePackageNames.any { it in cachedBlacklist } ||
+            cachedBlacklist.contains(activePackageName)
         if (blocked != operationsBlocked) updateBlacklistState(blocked)
         return blocked
     }
 
-    private fun foregroundPackageName(): String? = try {
-        getWindows()
-            .firstOrNull { it.isActive }
-            ?.root
-            ?.packageName
-            ?.toString()
-            ?: rootInActiveWindow?.packageName?.toString()
+    private fun foregroundPackageNames(): Set<String> = try {
+        buildSet {
+            getWindows()
+                .filter { it.isActive }
+                .mapNotNull { it.root?.packageName?.toString() }
+                .forEach(::add)
+            rootInActiveWindow?.packageName?.toString()?.let(::add)
+        }
     } catch (_: SecurityException) {
-        rootInActiveWindow?.packageName?.toString()
+        setOfNotNull(rootInActiveWindow?.packageName?.toString())
     }
 
     private fun isPackageBlacklisted(packageName: String?): Boolean =
