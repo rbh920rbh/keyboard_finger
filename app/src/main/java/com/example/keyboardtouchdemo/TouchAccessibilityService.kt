@@ -25,6 +25,8 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorParams: WindowManager.LayoutParams? = null
     private var cursorX = 0f
     private var cursorY = 0f
+    private var activePackageName: String? = null
+    private var operationsBlocked = false
     private var touchDown = false
     private var stroke: GestureDescription.StrokeDescription? = null
     private val touchPath = Path()
@@ -75,6 +77,8 @@ class TouchAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (isCurrentAppBlacklisted()) return false
+
         val direction = directionFor(event.keyCode)
         val isPointerMove = direction != null &&
             !event.isCtrlPressed &&
@@ -300,9 +304,42 @@ class TouchAccessibilityService : AccessibilityService() {
         return metrics.widthPixels.toFloat() to metrics.heightPixels.toFloat()
     }
 
-    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) = Unit
+    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
+        val packageName = event?.packageName?.toString() ?: return
+        if (packageName != activePackageName) {
+            activePackageName = packageName
+            updateBlacklistState(isPackageBlacklisted(packageName))
+        }
+    }
 
     override fun onInterrupt() = Unit
+
+    private fun isCurrentAppBlacklisted(): Boolean {
+        val blocked = isPackageBlacklisted(activePackageName)
+        if (blocked != operationsBlocked) updateBlacklistState(blocked)
+        return blocked
+    }
+
+    private fun isPackageBlacklisted(packageName: String?): Boolean =
+        AppSettings.parseBlacklist(
+            getSharedPreferences(AppSettings.PREFS, MODE_PRIVATE)
+                .getString(AppSettings.BLACKLIST_PACKAGES, null)
+        ).contains(packageName)
+
+    private fun updateBlacklistState(blocked: Boolean) {
+        operationsBlocked = blocked
+        if (blocked) {
+            pressedDirections.clear()
+            mainHandler.removeCallbacks(moveLoop)
+            movementScheduled = false
+            touchDown = false
+            touchPath.reset()
+            stroke = null
+        }
+        mainHandler.post {
+            cursorView?.visibility = if (blocked) View.INVISIBLE else View.VISIBLE
+        }
+    }
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(hideCursorRunnable)

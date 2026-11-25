@@ -8,8 +8,11 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import android.text.InputType
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
@@ -52,6 +55,36 @@ class MainActivity : Activity() {
             text = "打开无障碍设置"
             setOnClickListener {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+        })
+
+        root.addView(TextView(this).apply {
+            text = "黑名单应用（每行一个包名）"
+            textSize = 16f
+            setPadding(0, padding, 0, padding / 4)
+        })
+        val blacklistInput = EditText(this).apply {
+            hint = "例如：com.example.game"
+            minLines = 3
+            gravity = android.view.Gravity.TOP
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setText(
+                getSharedPreferences(AppSettings.PREFS, MODE_PRIVATE)
+                    .getString(AppSettings.BLACKLIST_PACKAGES, "")
+            )
+        }
+        root.addView(blacklistInput)
+        root.addView(Button(this).apply {
+            text = "保存黑名单"
+            setOnClickListener {
+                getSharedPreferences(AppSettings.PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putString(
+                        AppSettings.BLACKLIST_PACKAGES,
+                        blacklistInput.text.toString()
+                    )
+                    .apply()
+                Toast.makeText(this@MainActivity, "黑名单已保存", Toast.LENGTH_SHORT).show()
             }
         })
 
