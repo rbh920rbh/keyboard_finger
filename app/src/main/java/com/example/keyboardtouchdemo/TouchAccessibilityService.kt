@@ -27,6 +27,9 @@ class TouchAccessibilityService : AccessibilityService() {
     private var cursorY = 0f
     private var activePackageName: String? = null
     private var operationsBlocked = false
+    private var lastForegroundCheckAt = 0L
+    private var cachedBlacklistText: String? = null
+    private var cachedBlacklist = emptySet<String>()
     private var touchDown = false
     private var stroke: GestureDescription.StrokeDescription? = null
     private val touchPath = Path()
@@ -66,8 +69,11 @@ class TouchAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        refreshBlacklistCache()
         serviceInfo = serviceInfo.apply {
-            flags = flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+            flags = flags or
+                AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or
+                AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         }
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val (width, height) = screenSize()
@@ -306,25 +312,55 @@ class TouchAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
         val packageName = event?.packageName?.toString() ?: return
+        refreshBlacklistCache()
         if (packageName != activePackageName) {
             activePackageName = packageName
-            updateBlacklistState(isPackageBlacklisted(packageName))
+            lastForegroundCheckAt = SystemClock.uptimeMillis()
         }
+        val blocked = isPackageBlacklisted(packageName)
+        if (blocked != operationsBlocked) updateBlacklistState(blocked)
     }
 
     override fun onInterrupt() = Unit
 
     private fun isCurrentAppBlacklisted(): Boolean {
-        val blocked = isPackageBlacklisted(activePackageName)
+        refreshBlacklistCache()
+        val now = SystemClock.uptimeMillis()
+        if (activePackageName == null || now - lastForegroundCheckAt >= 300L) {
+            foregroundPackageName()?.let {
+                activePackageName = it
+                lastForegroundCheckAt = now
+            }
+        }
+        val foregroundPackage = activePackageName
+        val blocked = cachedBlacklist.contains(foregroundPackage)
         if (blocked != operationsBlocked) updateBlacklistState(blocked)
         return blocked
     }
 
+    private fun foregroundPackageName(): String? = try {
+        getWindows()
+            .firstOrNull { it.isActive }
+            ?.root
+            ?.packageName
+            ?.toString()
+            ?: rootInActiveWindow?.packageName?.toString()
+    } catch (_: SecurityException) {
+        rootInActiveWindow?.packageName?.toString()
+    }
+
     private fun isPackageBlacklisted(packageName: String?): Boolean =
-        AppSettings.parseBlacklist(
-            getSharedPreferences(AppSettings.PREFS, MODE_PRIVATE)
-                .getString(AppSettings.BLACKLIST_PACKAGES, null)
-        ).contains(packageName)
+        cachedBlacklist.contains(packageName)
+
+    private fun refreshBlacklistCache() {
+        val value = getSharedPreferences(AppSettings.PREFS, MODE_PRIVATE)
+            .getString(AppSettings.BLACKLIST_PACKAGES, "")
+            .orEmpty()
+        if (value != cachedBlacklistText) {
+            cachedBlacklistText = value
+            cachedBlacklist = AppSettings.parseBlacklist(value)
+        }
+    }
 
     private fun updateBlacklistState(blocked: Boolean) {
         operationsBlocked = blocked
@@ -332,9 +368,9 @@ class TouchAccessibilityService : AccessibilityService() {
             pressedDirections.clear()
             mainHandler.removeCallbacks(moveLoop)
             movementScheduled = false
-            touchDown = false
-            touchPath.reset()
-            stroke = null
+            if (touchDown) {
+                endStroke(cursorX, cursorY)
+            }
         }
         mainHandler.post {
             cursorView?.visibility = if (blocked) View.INVISIBLE else View.VISIBLE
